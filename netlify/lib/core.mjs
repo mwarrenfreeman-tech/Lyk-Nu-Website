@@ -290,9 +290,16 @@ export function buildAttachments(photos = [], prefix = 'damage-photo', maxBytes 
   });
   return out;
 }
+/** Turn "a@x.com, b@y.com" (or an array) into ['a@x.com','b@y.com']; commas or semicolons separate. */
+export function splitRecipients(to) {
+  return (Array.isArray(to) ? to : [to])
+    .flatMap((t) => String(t || '').split(/[,;]/))
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
 export function buildEmailPayload({ from, to, subject, text, replyTo, attachments }) {
   return {
-    from, to: Array.isArray(to) ? to : [to], subject, text,
+    from, to: splitRecipients(to), subject, text,
     ...(replyTo ? { reply_to: replyTo } : {}),
     ...(attachments && attachments.length ? { attachments } : {}),
   };
@@ -311,7 +318,7 @@ export function buildNotificationText({ id, when, name, phone, email, vehicle, i
 }
 export async function sendEmail({ to, subject, text, replyTo, attachments }) {
   const key = process.env.RESEND_API_KEY, from = process.env.NOTIFY_FROM;
-  if (!key || !from || !to) return { skipped: true };
+  if (!key || !from || !splitRecipients(to).length) return { skipped: true };
   try {
     const r = await fetch(process.env.RESEND_API_URL || 'https://api.resend.com/emails', {
       method: 'POST',
